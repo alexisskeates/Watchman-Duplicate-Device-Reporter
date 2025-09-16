@@ -96,24 +96,6 @@ SMTP_USE_TLS=true
    - Detailed analytics and logs
    - Free tier available (1,000 emails/month)
 
-#### Gmail (Alternative)
-1. Enable 2-Factor Authentication
-2. Generate App Password: [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords
-3. Use the App Password in the script (not your regular password)
-
-#### Office 365/Outlook (Alternative)
-```env
-SMTP_SERVER=smtp-mail.outlook.com
-SMTP_PORT=587
-SMTP_USE_TLS=true
-```
-
-#### Other Providers
-- **Yahoo:** `smtp.mail.yahoo.com:587`
-- **SendGrid:** `smtp.sendgrid.net:587`
-- **Mailgun:** `smtp.mailgun.org:587`
-- **Local SMTP:** `localhost:25` (requires Postfix setup)
-
 ## Usage
 
 ### Basic Commands
