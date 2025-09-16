@@ -150,11 +150,12 @@ class DuplicateReporter:
             return None
     
     def find_duplicates(self, computers: List[Dict]) -> Dict[str, List[Dict]]:
-        """Find duplicate computers based on system_mac_address"""
-        mac_groups = defaultdict(list)
+        """Find duplicate computers based on system_mac_address AND operating system type"""
+        mac_os_groups = defaultdict(list)
         
         for computer in computers:
             system_mac = computer.get('system_mac_address')
+            os_version = computer.get('os_version', '')
             
             # Skip computers without system MAC address
             if not system_mac or system_mac.strip() == '':
@@ -166,20 +167,50 @@ class DuplicateReporter:
             # Skip invalid MAC addresses
             if len(normalized_mac) != 12:
                 continue
-                
-            mac_groups[normalized_mac].append(computer)
+            
+            # Determine OS type from os_version string
+            os_type = self._get_os_type(os_version)
+            
+            # Create composite key: MAC + OS Type
+            composite_key = f"{normalized_mac}_{os_type}"
+            mac_os_groups[composite_key].append(computer)
         
         # Filter to only groups with duplicates
-        duplicates = {mac: computers for mac, computers in mac_groups.items() if len(computers) > 1}
+        duplicates = {key: computers for key, computers in mac_os_groups.items() if len(computers) > 1}
         
         return duplicates
+    
+    def _get_os_type(self, os_version: str) -> str:
+        """Extract OS type from os_version string"""
+        if not os_version:
+            return 'unknown'
+        
+        os_lower = os_version.lower()
+        
+        # Check for macOS variants
+        if any(mac_indicator in os_lower for mac_indicator in ['macos', 'mac os', 'os x', 'osx']):
+            return 'macos'
+        
+        # Check for Windows variants
+        if 'windows' in os_lower or 'win' in os_lower:
+            return 'windows'
+        
+        # Check for Linux variants
+        if any(linux_indicator in os_lower for linux_indicator in ['linux', 'ubuntu', 'centos', 'rhel', 'debian', 'fedora', 'suse']):
+            return 'linux'
+        
+        # Default to unknown for anything else
+        return 'unknown'
     
     def identify_devices_to_remove(self, duplicate_groups: Dict[str, List[Dict]]) -> List[Tuple[Dict, str]]:
         """Identify which devices should be removed (oldest last_report dates)"""
         devices_to_remove = []
         
-        for mac_address, computers in duplicate_groups.items():
-            print(f"\n--- Analyzing duplicates for MAC: {mac_address} ---")
+        for composite_key, computers in duplicate_groups.items():
+            # Parse the composite key to get MAC and OS type
+            mac_address, os_type = composite_key.rsplit('_', 1)
+            
+            print(f"\n--- Analyzing duplicates for MAC: {mac_address} (OS: {os_type.upper()}) ---")
             
             # Parse and sort by last_report date
             computer_dates = []
@@ -188,6 +219,7 @@ class DuplicateReporter:
                 computer_dates.append((computer, last_report_date))
                 
                 print(f"  {computer.get('computer_name', 'Unknown')} ({computer.get('client_id', 'Unknown ID')}) - "
+                      f"OS: {computer.get('os_version', 'Unknown')} - "
                       f"Last Report: {last_report_date if last_report_date else 'Unknown'}")
             
             # Sort by date (newest first, None dates last)
@@ -201,7 +233,7 @@ class DuplicateReporter:
                 print(f"  → KEEPING: {keeper[0].get('computer_name', 'Unknown')} ({keeper[0].get('client_id', 'Unknown ID')})")
                 
                 for computer, date in to_remove:
-                    reason = f"Duplicate MAC {mac_address}, older report date"
+                    reason = f"Duplicate MAC {mac_address} with same OS type ({os_type.upper()}), older report date"
                     devices_to_remove.append((computer, reason))
                     print(f"  → REMOVING: {computer.get('computer_name', 'Unknown')} ({computer.get('client_id', 'Unknown ID')}) - {reason}")
         
@@ -230,9 +262,12 @@ class DuplicateReporter:
         print()
         
         # Process each duplicate group
-        for mac_address, computers in duplicate_groups.items():
-            print(f"🔍 MAC Address: {mac_address}")
-            print("-" * 40)
+        for composite_key, computers in duplicate_groups.items():
+            # Parse the composite key to get MAC and OS type
+            mac_address, os_type = composite_key.rsplit('_', 1)
+            
+            print(f"🔍 MAC Address: {mac_address} (OS Type: {os_type.upper()})")
+            print("-" * 50)
             
             # Parse and sort by last_report date
             computer_dates = []
@@ -245,6 +280,7 @@ class DuplicateReporter:
             
             group_detail = {
                 'mac_address': mac_address,
+                'os_type': os_type.upper(),
                 'total_devices': len(computers),
                 'device_to_keep': None,
                 'devices_to_remove': []
@@ -279,7 +315,7 @@ class DuplicateReporter:
                     print(f"      Serial: {device_info['serial_number']}")
                     print(f"      OS: {device_info['os_version']}")
                     print(f"      URL: {device_info['computer_url']}")
-                    print(f"      Reason: Older report date than keeper")
+                    print(f"      Reason: Older report date than keeper (same OS type: {os_type.upper()})")
                     
                     group_detail['devices_to_remove'].append(device_info)
                     results['devices_to_remove'].append(device_info)
@@ -334,7 +370,7 @@ class DuplicateReporter:
                         'OS_Version': device['os_version'],
                         'Group': device['group'],
                         'Computer_URL': device['computer_url'],
-                        'Reason': 'Older report date than keeper'
+                        'Reason': 'Older report date (same MAC + OS type)'
                     })
             
             print(f"📄 Report exported to: {filename}")
@@ -480,6 +516,7 @@ class EmailReporter:
                 <div class="group">
                     <div class="group-header">
                         <strong>MAC Address:</strong> {group['mac_address']} 
+                        <strong>OS Type:</strong> {group['os_type']}
                         ({group['total_devices']} devices)
                     </div>
                 """
@@ -551,8 +588,8 @@ Devices to Remove: {len(results.get('devices_to_remove', []))}
             text += "---------------\n\n"
             
             for group in results['duplicate_groups_detail']:
-                text += f"MAC Address: {group['mac_address']} ({group['total_devices']} devices)\n"
-                text += "-" * 50 + "\n"
+                text += f"MAC Address: {group['mac_address']} | OS Type: {group['os_type']} ({group['total_devices']} devices)\n"
+                text += "-" * 60 + "\n"
                 
                 # Device to keep
                 if group.get('device_to_keep'):
@@ -838,7 +875,9 @@ def main():
             }
             
             # Process groups for email
-            for mac_address, computers in duplicate_groups.items():
+            for composite_key, computers in duplicate_groups.items():
+                # Parse the composite key to get MAC and OS type
+                mac_address, os_type = composite_key.rsplit('_', 1)
                 computer_dates = []
                 for computer in computers:
                     last_report_date = reporter.parse_last_report(computer.get('last_report'))
@@ -848,6 +887,7 @@ def main():
                 
                 group_detail = {
                     'mac_address': mac_address,
+                    'os_type': os_type.upper(),
                     'total_devices': len(computers),
                     'device_to_keep': None,
                     'devices_to_remove': []
