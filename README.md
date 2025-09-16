@@ -2,6 +2,8 @@
 
 A Python script that identifies and reports duplicate devices in Watchman Monitoring based on System MAC Address. The script generates detailed reports showing which devices should be kept (most recent activity) and which should be removed (older duplicates).
 
+> **Note:** This script was developed with the assistance of AI to provide robust duplicate detection and reporting capabilities for Watchman Monitoring environments.
+
 ## Features
 
 - 🔍 **Duplicate Detection** - Finds devices with identical System MAC addresses
@@ -63,24 +65,43 @@ This creates a `.env` file with your credentials:
 WATCHMAN_SUBDOMAIN=your_subdomain
 WATCHMAN_API_KEY=your_api_key
 
-# Email Settings (Optional)
-SMTP_SERVER=smtp.gmail.com
+# Email Settings (Optional) - SMTP2GO Example
+SMTP_SERVER=mail.smtp2go.com
 SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your_app_password
-EMAIL_FROM=your-email@gmail.com
+SMTP_USERNAME=your-smtp2go-username
+SMTP_PASSWORD=your-smtp2go-password
+EMAIL_FROM=monitoring@yourcompany.com
 EMAIL_TO=admin@company.com
 SMTP_USE_TLS=true
 ```
 
 ### Email Provider Setup
 
-#### Gmail (Recommended)
+#### SMTP2GO (Recommended)
+[SMTP2GO](https://www.smtp2go.com/) is a reliable transactional email service that's perfect for automated scripts:
+
+1. **Create SMTP2GO Account:** Sign up at [smtp2go.com](https://www.smtp2go.com/)
+2. **Get SMTP Credentials:** Go to Settings → SMTP Users → Create SMTP User
+3. **Configuration:**
+   ```env
+   SMTP_SERVER=mail.smtp2go.com
+   SMTP_PORT=587
+   SMTP_USERNAME=your-smtp2go-username
+   SMTP_PASSWORD=your-smtp2go-password
+   SMTP_USE_TLS=true
+   ```
+4. **Benefits:**
+   - Dedicated for transactional emails
+   - High deliverability rates
+   - Detailed analytics and logs
+   - Free tier available (1,000 emails/month)
+
+#### Gmail (Alternative)
 1. Enable 2-Factor Authentication
 2. Generate App Password: [Google Account Security](https://myaccount.google.com/security) → 2-Step Verification → App passwords
 3. Use the App Password in the script (not your regular password)
 
-#### Office 365/Outlook
+#### Office 365/Outlook (Alternative)
 ```env
 SMTP_SERVER=smtp-mail.outlook.com
 SMTP_PORT=587
@@ -89,6 +110,8 @@ SMTP_USE_TLS=true
 
 #### Other Providers
 - **Yahoo:** `smtp.mail.yahoo.com:587`
+- **SendGrid:** `smtp.sendgrid.net:587`
+- **Mailgun:** `smtp.mailgun.org:587`
 - **Local SMTP:** `localhost:25` (requires Postfix setup)
 
 ## Usage
@@ -222,8 +245,9 @@ python3 -m py_compile watchman_duplicate_check.py
 
 **Email Issues:**
 - Verify SMTP settings with your email provider
+- For SMTP2GO, check your account dashboard for usage limits and status
 - For Gmail, ensure 2FA is enabled and use App Password
-- Test SMTP connectivity: `telnet smtp.gmail.com 587`
+- Test SMTP connectivity: `telnet mail.smtp2go.com 587`
 
 **Permission Issues:**
 ```bash
@@ -255,6 +279,12 @@ watchman-duplicate-reporter/
 3. Commit your changes: `git commit -am 'Add feature'`
 4. Push to the branch: `git push origin feature-name`
 5. Submit a pull request
+
+## Acknowledgments
+
+- **AI Development:** This script was created with the assistance of Claude AI to ensure robust functionality and comprehensive error handling
+- **Watchman Monitoring:** For providing the API that makes this automation possible
+- **SMTP2GO:** For reliable transactional email delivery services
 
 ## License
 
